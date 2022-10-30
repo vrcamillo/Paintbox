@@ -18,7 +18,7 @@ out vec4 pixel_color;
 
 void main() {
 	vec4 world_position = vec4(vertex_position, 1);
-	gl_Position = world_position;
+	gl_Position = projection * world_position;
 	pixel_color = vertex_color;
 	pixel_uv = vertex_uv;
 }  
@@ -141,7 +141,7 @@ namespace Paintbox {
 		if (!shader_compiled) {
 			char message[512];
 			glGetShaderInfoLog(handle, sizeof(message), nullptr, message);
-			paintbox_log("Failed to compile vertex shader:\n%s", message);
+			paintbox_log("Failed to compile shader:\n%s", message);
 			glDeleteShader(handle);
 			return nullptr;
 		}
@@ -252,6 +252,50 @@ namespace Paintbox {
 		Rect viewport = state->viewport;
 		glViewport(viewport.x, viewport.y, viewport.w, viewport.h);
 		
+		if (state->texture0) {
+			auto texture0_gl = (TextureGL*) state->texture0;
+			
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, texture0_gl->handle);
+		}
+		
+		if (state->texture1) {
+			auto texture1_gl = (TextureGL*) state->texture1;
+			
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, texture1_gl->handle);
+		}
+		
+		
+		// Apply uniforms
+		GLuint projection_uniform_loc = glGetUniformLocation(linkage->program, "projection");
+		if (projection_uniform_loc >= 0) {
+			glUniformMatrix4fv(projection_uniform_loc, 1, GL_TRUE, (float*) &state->projection);
+		} else {
+			// #incomplete #robustness: Provide a helpful error message here.
+		}
+		
+		GLuint texture0_uniform_loc = glGetUniformLocation(linkage->program, "texture0");
+		if (texture0_uniform_loc >= 0) {
+			glUniform1i(texture0_uniform_loc, 0);
+		} else {
+			// #incomplete #robustness: Provide a helpful error message here.
+		}
+		
+		GLuint texture1_uniform_loc = glGetUniformLocation(linkage->program, "texture1");
+		if (texture1_uniform_loc >= 0) {
+			glUniform1i(texture1_uniform_loc, 1);
+		} else {
+			// #incomplete #robustness: Provide a helpful error message here.
+		}
+		
+		GLuint time_uniform_loc = glGetUniformLocation(linkage->program, "time");
+		if (time_uniform_loc >= 0) {
+			glUniform1f(time_uniform_loc, glfwGetTime()); // #temporary
+		} else {
+			// #incomplete #robustness: Provide a helpful error message here.
+		}
+		
 		glBindVertexArray(vertex_array_objects[(int) VertexFormat::XYZ_RGBA_UV]);
 		
 		static_assert((int) VertexFormat::COUNT == 1, "We assume all meshes use XYZ_RGBA_UV for now.");
@@ -265,6 +309,84 @@ namespace Paintbox {
 		// Maybe these are not necessary, but I'm being paranoid here.
 		glBindVertexArray(0);
 		glUseProgram(0);
+		glBindTexture(GL_TEXTURE_2D, 0);
+	}
+
+	
+	struct GLTextureFormatInfo {
+		GLenum gl_format;
+		GLenum gl_internal_format;
+		GLenum gl_type;
+		GLint gl_swizzle[4];
+	};
+	
+	static GLTextureFormatInfo gl_get_texture_format_info(TextureFormat format) {
+		GLTextureFormatInfo info = {};
+		
+		info.gl_swizzle[0] = GL_RED;
+		info.gl_swizzle[1] = GL_GREEN;
+		info.gl_swizzle[2] = GL_BLUE;
+		info.gl_swizzle[3] = GL_ALPHA;
+		
+		switch (format) {
+		  case TextureFormat::RGBA_U8: {
+				info.gl_internal_format = GL_RGBA8; 
+				info.gl_type = GL_UNSIGNED_BYTE;
+				info.gl_format = GL_RGBA;
+			} break;
+			
+		  case TextureFormat::RGBA_S8: {
+				info.gl_internal_format = GL_RGBA8; 
+				info.gl_type = GL_BYTE;
+				info.gl_format = GL_RGBA;
+			} break;
+			
+			
+		  case TextureFormat::RGBA_F16: {
+				info.gl_internal_format = GL_RGBA16F; 
+				info.gl_type = GL_HALF_FLOAT;
+				info.gl_format = GL_RGBA;
+			} break;
+			
+		  case TextureFormat::ALPHA_F32: {
+				info.gl_internal_format = GL_R32F; 
+				info.gl_type = GL_FLOAT;
+				info.gl_format = GL_RED;
+				
+				info.gl_swizzle[0] = GL_ONE;
+				info.gl_swizzle[1] = GL_ONE;
+				info.gl_swizzle[2] = GL_ONE;
+				info.gl_swizzle[3] = GL_RED;
+			} break;
+			
+		  default: 
+			paintbox_assert(false);
+		}	
+		
+		return info;
+	}
+	
+	Texture* texture_create(TextureFormat format, int32_t width, int32_t height, void* image_data) {
+		auto format_info = gl_get_texture_format_info(format);
+		
+		GLuint handle;
+		glGenTextures(1, &handle);
+		glBindTexture(GL_TEXTURE_2D, handle);
+		glTexImage2D(GL_TEXTURE_2D, 0, format_info.gl_internal_format, width, height, 0, format_info.gl_format, format_info.gl_type, image_data);
+		
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, format_info.gl_swizzle);
+		
+		glBindTexture(GL_TEXTURE_2D, 0);
+		
+		TextureGL* texture = new TextureGL; // #memory_cleanup
+		register_resource(texture);
+		texture->format = format;
+		texture->width = width;
+		texture->height = height;
+		texture->handle = handle;
+		return texture;
 	}
 	
 }

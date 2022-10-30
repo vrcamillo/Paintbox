@@ -1,0 +1,2 @@
+The assets in this folder are from ambientCG, released under Public Domain: 
+	https://ambientcg.com/

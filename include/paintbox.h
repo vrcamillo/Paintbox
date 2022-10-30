@@ -5,9 +5,21 @@
 // #temporary: The library should allow the user to override the assert and log functions.
 #include <stdlib.h> // For exit().
 #include <stdio.h>  // For printf().
-#define paintbox_log(msg, ...) printf(msg "\n", __VA_ARGS__);
-#define paintbox_assert(condition) if (!(condition)) { printf("%s:%d: Assertion failed: \n\t" #condition "\n\n", __FILE__, __LINE__); exit(-1); }
-#define paintbox_assert_log(condition, msg, ...) if (!(condition)) { printf("%s:%d: \n", __FILE__, __LINE__); printf("\t" msg "\n\n", __VA_ARGS__); exit(-1); }
+
+#define paintbox_log(msg, ...) { printf(msg "\n", __VA_ARGS__); fflush(stdout); }
+
+#define paintbox_assert(condition) if (!(condition)) { \
+	printf("%s:%d: Assertion failed: \n\t" #condition "\n\n", __FILE__, __LINE__); \
+	fflush(stdout); \
+	exit(-1); \
+}
+
+#define paintbox_assert_log(condition, msg, ...) if (!(condition)) {  \
+	printf("%s:%d: \n", __FILE__, __LINE__); \
+	printf("\t" msg "\n\n", __VA_ARGS__); \
+	fflush(stdout); \
+	exit(-1); \
+}
 
 // Call this macro before creating a resource to have debug information about it.
 #define MARK_NEXT_RESOURCE(name) Paintbox::mark_next_resource(name, __FILE__, __LINE__);
@@ -108,6 +120,7 @@ namespace Paintbox {
 		NONE,
 		
 		RGBA_U8,
+		RGBA_S8,
 		RGBA_F16,
 		
 		ALPHA_F32,
@@ -187,6 +200,7 @@ namespace Paintbox {
 		Canvas* canvas = nullptr; // Null means the backbuffer.
 		
 		Texture* texture0 = nullptr;
+		Texture* texture1 = nullptr;
 		
 		Rect viewport = {0, 0, 0, 0};
 		
@@ -210,7 +224,7 @@ namespace Paintbox {
 	// #todo: shader_destroy
 	
 	// Texture 
-	// Texture* texture_create(TextureFormat format, uint32_t width, uint32_t height, void* image_data);
+	Texture* texture_create(TextureFormat format, int32_t width, int32_t height, void* image_data);
 	// #todo: texture_destroy
 	
 	// Mesh
@@ -284,6 +298,8 @@ namespace Paintbox {
 	// mat4
 	vec4 operator*(mat4 m, vec4 v);
 	mat4 operator*(mat4 a, mat4 b);
+	
+	mat4 orthographic(float left, float right, float top, float bottom, float near, float far);
 	
 	// Debugging functions
 	void mark_next_resource(const char* name, const char* file, int32_t line);

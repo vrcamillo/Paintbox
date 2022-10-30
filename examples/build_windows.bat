@@ -232,6 +232,7 @@ rem
 
 echo Building examples...
 
+set includes=!includes! /Ithird_party
 
 for /r %%i in (example_*.cpp) do (
 	rem set source_files=!source_files! %%~fi
