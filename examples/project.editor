@@ -6,5 +6,5 @@ open_recursively third_party/imgui-1.88
 
 build_command build_windows.bat
 
-F1 paintbox_example
+F1 example_surfaces
 F1_working_directory .build

@@ -7,16 +7,14 @@ rem
 
 set build_folder=.build
 
-set executable_name=paintbox_example
-
 set glfw_id=glfw-3.3.8
 set imgui_id=imgui-1.88
 set glad_id=glad
+set paintbox_id=paintbox
 
 rem
 rem /////////////////////////////
 rem
-
 
 set glfw_folder=third_party\!glfw_id!
 set glfw_build_folder=!build_folder!\.!glfw_id!
@@ -30,8 +28,9 @@ set glad_folder=..\third_party\!glad_id!
 set glad_build_folder=!build_folder!\.!glad_id!
 set glad_library=!glad_build_folder!\glad.lib
 
-set executable_build_folder=!build_folder!\.!executable_name!
-set executable=!build_folder!\!executable_name!.exe
+set paintbox_folder=..
+set paintbox_build_folder=!build_folder!\.!paintbox_id!
+set paintbox_library=!paintbox_build_folder!\paintbox.lib
 
 rem These variables are going to be filled below.
 set source_files=
@@ -134,7 +133,7 @@ if not exist !imgui_library! (
 	)
 	
 	for %%f in (!imgui_source_files!) do ( 
- 	  cl /nologo /c /O2 /I"code" /I!imgui_folder! /I!glfw_folder!/include /I"..\include" /D IMGUI_USER_CONFIG=\"my_imgui_config.h\" %%f /Fo"!imgui_build_folder!\%%~nf.obj"
+ 	  cl /nologo /c /O2 /I. /I!imgui_folder! /I!glfw_folder!/include /I"!paintbox_folder!\include" /D IMGUI_USER_CONFIG=\"my_imgui_config.h\" %%f /Fo"!imgui_build_folder!\%%~nf.obj"
 		if errorlevel 1 (
 			echo:
 			echo Compilation error! Stopping...
@@ -158,7 +157,6 @@ if exist !imgui_library! (
 rem
 rem Glad
 rem
-
 
 echo Searching for !glad_id!...
 if not exist !glad_library! (
@@ -194,40 +192,69 @@ if exist !glad_library! (
 	exit /b
 )
 
-rem 
-rem Main program
-rem 
+rem
+rem Paintbox
+rem
 
-set includes=!includes! /I"code" /I"..\include"
+echo Checking for changes in !paintbox_id!...
 
-rem Add all cpp files from 'code' 
-for /r %%i in (code\*.cpp) do (
-	set source_files=!source_files! %%~fi
-)
-
-set defines=!defines! /DGRAPHICS_OPENGL=1
-for /r %%i in (..\implementation\*.cpp) do (
-	set source_files=!source_files! %%~fi
-)
-
-if exist !executable_build_folder! (
-	del /S /Q !executable_build_folder!\* 1>nul
+if exist !paintbox_build_folder! (
+	del /S /Q !paintbox_build_folder!\* 1>nul
 ) else (
-	mkdir !executable_build_folder!
+	mkdir !paintbox_build_folder!
 )
 
-for %%f in (!source_files!) do (
-	cl /c /nologo /Zi !includes! !defines! %%f /Fo"!executable_build_folder!\%%~nf.obj"
+for %%i in (!paintbox_folder!\implementation\*.cpp) do (
+   cl /nologo /c /O2 /I!paintbox_folder!/include !includes! %%~fi /Fo"!paintbox_build_folder!\%%~ni.obj"
 	if errorlevel 1 (
+		echo:
+		echo Compilation error! Stopping...
 		exit /b
 	)
 )
 
-link /nologo /DEBUG !executable_build_folder!\*.obj !libraries! /out:!executable!
+lib /nologo /out:!paintbox_library! !paintbox_build_folder!\*.obj	
 
-echo:
-if errorlevel 0 (
-	echo Success^^! Executable written to !executable!.
+if exist !paintbox_library! (
+	echo Success^^! !paintbox_id! compiled at !paintbox_library!.
+	echo:
+	set includes=!includes! /I"!paintbox_folder!\include"
+	set libraries=!libraries! !paintbox_library!
 ) else (
-	echo Error^^!
+	echo Error! Some error occured while compiling ImGui. We are unable to proceed compilation.
+	exit /b
 )
+
+
+rem 
+rem Examples
+rem 
+
+echo Building examples...
+
+
+for /r %%i in (example_*.cpp) do (
+	rem set source_files=!source_files! %%~fi
+
+	set object_file="!build_folder!\%%~ni.obj"
+	set executable="!build_folder!\%%~ni.exe"
+
+	cl /c /nologo /Zi !includes! !defines! %%~fi /Fo!object_file!
+	if errorlevel 1 (
+		exit /b
+	)
+	
+	link /nologo /DEBUG /INCREMENTAL:NO !object_file! !libraries! /out:!executable!
+	
+	rem Will we ever need the object file?
+	del !object_file! 
+
+	echo:
+	if errorlevel 0 (
+		echo Example "%%~ni" written to !executable!.
+	) else (
+		echo Error^^!
+	)
+)
+	
+
