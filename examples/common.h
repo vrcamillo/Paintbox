@@ -26,7 +26,7 @@ int main() {
 	
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	
-	window = glfwCreateWindow(1920 * 3 / 4, 1080 * 3 / 4, "Paintbox", nullptr, nullptr);
+	window = glfwCreateWindow(1920 * 3 / 4, 1080 * 3 / 4, EXAMPLE_NAME, nullptr, nullptr);
 	if (!window) {
 		glfwTerminate();
 		return -1;

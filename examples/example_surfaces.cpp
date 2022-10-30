@@ -1,7 +1,9 @@
+#define EXAMPLE_NAME "Surfaces"
 #include "common.h"
 
 #include "paintbox.h"
 using namespace Paintbox;
+
 // Ideas:
 // - 2D normal mapping with shadows
 // - 2D fluid simulation
