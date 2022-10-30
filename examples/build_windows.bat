@@ -201,13 +201,13 @@ rem
 set includes=!includes! /I"code" /I"..\include"
 
 rem Add all cpp files from 'code' 
-for /r %%f in (code\*.cpp) do (
-	set source_files=!source_files! %%f
+for /r %%i in (code\*.cpp) do (
+	set source_files=!source_files! %%~fi
 )
 
 set defines=!defines! /DGRAPHICS_OPENGL=1
-for /r %%f in (..\implementation\*.cpp) do (
-	set source_files=!source_files! %%f
+for /r %%i in (..\implementation\*.cpp) do (
+	set source_files=!source_files! %%~fi
 )
 
 if exist !executable_build_folder! (
